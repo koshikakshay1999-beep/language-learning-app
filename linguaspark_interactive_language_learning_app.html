@@ -1,0 +1,1615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LinguaSpark — Interactive Language Learning</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & Noto Sans Devanagari for Hindi/Kumaoni scripts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for clean icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans Devanagari', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom 3D Flip Card Mechanics */
+        .perspective-1000 {
+            perspective: 1000px;
+        }
+        .transform-style-3d {
+            transform-style: preserve-3d;
+            transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        .backface-hidden {
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+        .rotate-y-180 {
+            transform: rotateY(180deg);
+        }
+        /* Subtle pulse animation for audio playback */
+        @keyframes soundWave {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.12); }
+        }
+        .speaking-pulse {
+            animation: soundWave 0.8s infinite ease-in-out;
+        }
+        /* Smooth fade-in for tabs */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.25s ease-out forwards;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen flex flex-col selection:bg-brand-100 selection:text-brand-700">
+
+    <!-- Toast / Notification Banner (Replaces alert()) -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Top Navigation & Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+            <!-- Brand Logo -->
+            <div class="flex items-center gap-2.5">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-600 to-violet-600 flex items-center justify-center text-white shadow-md shadow-brand-500/20">
+                    <i class="fa-solid fa-language text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900 leading-none">LinguaSpark</h1>
+                    <p class="text-xs text-slate-500 font-medium mt-0.5">Interactive Polyglot Studio</p>
+                </div>
+            </div>
+
+            <!-- Language Selector & Compact Stats -->
+            <div class="flex items-center gap-2 sm:gap-4 flex-wrap">
+                <!-- Target Language Dropdown -->
+                <div class="relative">
+                    <label for="language-select" class="sr-only">Target Language</label>
+                    <select id="language-select" class="appearance-none bg-slate-100 hover:bg-slate-200/70 transition-colors text-slate-800 font-semibold text-sm rounded-xl pl-3.5 pr-9 py-2.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer">
+                        <option value="kumaoni">🏔️ Kumaoni (कुमाऊँनी)</option>
+                        <option value="hindi">🇮🇳 Hindi (हिन्दी)</option>
+                        <option value="spanish">🇪🇸 Spanish (Español)</option>
+                        <option value="french">🇫🇷 French (Français)</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-slate-500">
+                        <i class="fa-solid fa-chevron-down text-xs"></i>
+                    </div>
+                </div>
+
+                <!-- Mini XP & Streak Pill -->
+                <div class="hidden sm:flex items-center gap-3 bg-slate-50 border border-slate-200/80 rounded-xl px-3.5 py-2 text-xs font-bold">
+                    <span class="flex items-center gap-1.5 text-amber-600" title="Daily Streak">
+                        <i class="fa-solid fa-fire text-sm"></i>
+                        <span id="header-streak">1</span>d
+                    </span>
+                    <span class="text-slate-300">|</span>
+                    <span class="flex items-center gap-1.5 text-brand-600" title="Total XP">
+                        <i class="fa-solid fa-bolt text-sm"></i>
+                        <span id="header-xp">0</span> XP
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Primary Navigation Tabs -->
+        <nav class="max-w-6xl mx-auto px-4 sm:px-6 flex gap-1 sm:gap-2 overflow-x-auto border-t border-slate-100" aria-label="Main Tabs">
+            <button data-tab="learn" class="nav-tab active flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 border-brand-600 text-brand-600 whitespace-nowrap transition-colors">
+                <i class="fa-solid fa-layer-group"></i>
+                <span>Learn & Flashcards</span>
+            </button>
+            <button data-tab="quiz" class="nav-tab flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap transition-colors">
+                <i class="fa-solid fa-bullseye"></i>
+                <span>Practice Quiz</span>
+            </button>
+            <button data-tab="custom" class="nav-tab flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap transition-colors">
+                <i class="fa-solid fa-plus-circle"></i>
+                <span>My Deck & Add Card</span>
+            </button>
+            <button data-tab="progress" class="nav-tab flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap transition-colors">
+                <i class="fa-solid fa-chart-line"></i>
+                <span>Progress</span>
+            </button>
+        </nav>
+    </header>
+
+    <!-- Main Application Container -->
+    <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
+
+        <!-- ========================================================= -->
+        <!-- TAB 1: LEARN & INTERACTIVE FLASHCARDS                     -->
+        <!-- ========================================================= -->
+        <section id="tab-learn" class="tab-panel animate-fade-in">
+            <!-- Language Info & Category Filter Bar -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h2 id="learn-lang-title" class="text-2xl font-bold text-slate-900">Kumaoni Lessons</h2>
+                        <span id="learn-lang-badge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800">Phonetic Guide Mode</span>
+                    </div>
+                    <p id="learn-lang-desc" class="text-sm text-slate-500 mt-1">Click any flashcard to flip between target script, transliteration, and meaning.</p>
+                </div>
+
+                <!-- Category Pills -->
+                <div class="flex flex-wrap items-center gap-2" id="learn-category-filters">
+                    <button data-cat="All" class="cat-pill active px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-brand-600 text-white shadow-sm transition">All</button>
+                    <button data-cat="Vocabulary" class="cat-pill px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 transition">Vocabulary</button>
+                    <button data-cat="Daily Phrases" class="cat-pill px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 transition">Daily Phrases</button>
+                    <button data-cat="Grammar" class="cat-pill px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 transition">Grammar</button>
+                </div>
+            </div>
+
+            <!-- Deck Progress & Filter Toggle -->
+            <div class="bg-white rounded-2xl border border-slate-200/90 p-4 mb-6 shadow-sm flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center gap-4 flex-1 min-w-[200px]">
+                    <div class="text-sm font-semibold text-slate-700 whitespace-nowrap">
+                        Card <span id="card-counter-current" class="text-brand-600 font-bold">1</span> of <span id="card-counter-total">0</span>
+                    </div>
+                    <div class="w-full max-w-xs bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                        <div id="deck-progress-bar" class="bg-brand-600 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <label class="inline-flex items-center gap-2 text-xs sm:text-sm font-medium text-slate-600 cursor-pointer select-none">
+                        <input type="checkbox" id="filter-unmastered-only" class="rounded text-brand-600 focus:ring-brand-500 w-4 h-4">
+                        <span>Practice unmastered only</span>
+                    </label>
+                    <button id="shuffle-deck-btn" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-semibold transition flex items-center gap-1.5" title="Shuffle Cards">
+                        <i class="fa-solid fa-shuffle"></i>
+                        <span>Shuffle</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 3D Flashcard Stage -->
+            <div id="flashcard-stage" class="max-w-2xl mx-auto">
+                <div class="perspective-1000 w-full h-[360px] sm:h-[390px] cursor-pointer select-none" id="flashcard-wrapper">
+                    <div id="flashcard-inner" class="relative w-full h-full transform-style-3d">
+                        
+                        <!-- FRONT OF CARD -->
+                        <div class="backface-hidden absolute inset-0 bg-white rounded-3xl border border-slate-200 shadow-lg shadow-slate-200/50 p-6 sm:p-8 flex flex-col justify-between">
+                            <div class="flex items-center justify-between">
+                                <span id="card-category-tag" class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-brand-50 text-brand-700">Vocabulary</span>
+                                <span id="card-mastery-badge" class="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-500">New</span>
+                            </div>
+
+                            <div class="text-center my-auto px-2">
+                                <p id="card-front-word" class="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight mb-3 leading-tight">नमस्कार</p>
+                                <p id="card-front-translit" class="text-base sm:text-lg font-medium text-brand-600">Namaskār</p>
+                            </div>
+
+                            <div class="flex items-center justify-between pt-3 border-t border-slate-100">
+                                <button id="btn-pronounce-front" type="button" class="pronounce-btn inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-50 hover:bg-brand-100 text-brand-700 font-semibold text-sm transition">
+                                    <i class="fa-solid fa-volume-high"></i>
+                                    <span id="pronounce-label-front">Listen</span>
+                                </button>
+                                <span class="text-xs font-medium text-slate-400 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-rotate"></i> Tap card to flip
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- BACK OF CARD -->
+                        <div class="backface-hidden rotate-y-180 absolute inset-0 bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-3xl shadow-xl p-6 sm:p-8 flex flex-col justify-between">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold uppercase tracking-wider text-brand-300">Translation & Context</span>
+                                <button id="btn-pronounce-back" type="button" class="pronounce-btn inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition">
+                                    <i class="fa-solid fa-volume-high"></i>
+                                    <span>Audio / Phonetics</span>
+                                </button>
+                            </div>
+
+                            <div class="my-auto space-y-4">
+                                <div>
+                                    <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold">English Meaning</p>
+                                    <p id="card-back-meaning" class="text-2xl sm:text-3xl font-bold text-white mt-0.5">Hello / Greetings</p>
+                                </div>
+
+                                <div class="bg-white/10 rounded-2xl p-4 border border-white/10">
+                                    <p class="text-xs uppercase tracking-wider text-brand-300 font-semibold mb-1">Example Usage</p>
+                                    <p id="card-back-example" class="text-sm sm:text-base font-semibold text-white">नमस्कार, कतु हाल छन?</p>
+                                    <p id="card-back-example-translit" class="text-xs text-slate-300 italic mt-0.5">Namaskār, katu hāl chhan?</p>
+                                    <p id="card-back-example-en" class="text-xs sm:text-sm text-emerald-300 mt-1.5 font-medium">"Hello, how are things?"</p>
+                                </div>
+
+                                <div id="card-phonetic-box" class="hidden text-xs bg-amber-500/20 border border-amber-400/30 text-amber-200 rounded-xl px-3.5 py-2">
+                                    <i class="fa-solid fa-ear-listen mr-1.5"></i>
+                                    <span id="card-phonetic-guide">Pronounced: nuh-muh-skaar</span>
+                                </div>
+                            </div>
+
+                            <div class="text-right">
+                                <span class="text-xs text-slate-400"><i class="fa-solid fa-rotate mr-1"></i> Tap to flip back</span>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Flashcard Controls: Prev, Mastery Actions, Next -->
+                <div class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <button id="btn-prev-card" class="w-full sm:w-auto px-5 py-3 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold text-sm shadow-sm transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-arrow-left"></i>
+                        <span>Previous</span>
+                    </button>
+
+                    <div class="flex items-center gap-3 w-full sm:w-auto justify-center">
+                        <button id="btn-needs-practice" class="flex-1 sm:flex-initial px-4 py-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 font-semibold text-sm transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                            <span>Needs Practice</span>
+                        </button>
+                        <button id="btn-mark-mastered" class="flex-1 sm:flex-initial px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm shadow-sm shadow-emerald-600/20 transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-circle-check"></i>
+                            <span>Mark Mastered (+10 XP)</span>
+                        </button>
+                    </div>
+
+                    <button id="btn-next-card" class="w-full sm:w-auto px-5 py-3 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold text-sm shadow-sm transition flex items-center justify-center gap-2">
+                        <span>Next</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Empty State when all cards are mastered in filtered view -->
+            <div id="flashcard-empty-state" class="hidden max-w-xl mx-auto bg-white rounded-3xl border border-slate-200 p-8 text-center shadow-sm">
+                <div class="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-4 text-2xl">
+                    <i class="fa-solid fa-trophy"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-900">All Caught Up!</h3>
+                <p class="text-sm text-slate-500 mt-2">You've mastered all cards in this filter. Uncheck "Practice unmastered only" or switch categories to review again.</p>
+                <button id="btn-reset-filter" class="mt-5 px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold transition">
+                    Show All Cards
+                </button>
+            </div>
+        </section>
+
+        <!-- ========================================================= -->
+        <!-- TAB 2: INTERACTIVE PRACTICE QUIZ                          -->
+        <!-- ========================================================= -->
+        <section id="tab-quiz" class="tab-panel hidden animate-fade-in">
+            <div class="max-w-3xl mx-auto">
+                <!-- Quiz Setup Header -->
+                <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 mb-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900">Practice Quiz</h2>
+                        <p class="text-sm text-slate-500 mt-0.5">Test your retention in <span id="quiz-lang-name" class="font-semibold text-brand-600">Kumaoni</span></p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2.5">
+                        <select id="quiz-category-select" class="bg-slate-100 border border-slate-200 rounded-xl px-3.5 py-2 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                            <option value="All">All Categories</option>
+                            <option value="Vocabulary">Vocabulary</option>
+                            <option value="Daily Phrases">Daily Phrases</option>
+                            <option value="Grammar">Grammar</option>
+                        </select>
+                        <button id="btn-start-quiz" class="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold shadow-sm transition flex items-center gap-2">
+                            <i class="fa-solid fa-play"></i>
+                            <span>New Quiz</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Active Quiz Card -->
+                <div id="quiz-active-container" class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-md">
+                    <!-- Quiz Top Bar -->
+                    <div class="flex items-center justify-between text-xs sm:text-sm font-semibold text-slate-500 mb-6 pb-4 border-b border-slate-100">
+                        <span>Question <span id="quiz-q-num" class="text-slate-900 font-bold">1</span> of <span id="quiz-q-total">5</span></span>
+                        <span id="quiz-type-badge" class="px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-bold">Multiple Choice</span>
+                        <span>Score: <span id="quiz-live-score" class="text-emerald-600 font-bold">0</span></span>
+                    </div>
+
+                    <!-- Question Prompt -->
+                    <div class="mb-6">
+                        <p id="quiz-prompt-instruction" class="text-xs uppercase tracking-wider font-bold text-slate-400 mb-2">Translate into English</p>
+                        <div class="flex items-center gap-3">
+                            <h3 id="quiz-question-text" class="text-2xl sm:text-3xl font-extrabold text-slate-900">पानी</h3>
+                            <button id="quiz-audio-btn" type="button" class="w-10 h-10 rounded-xl bg-brand-50 hover:bg-brand-100 text-brand-600 flex items-center justify-center transition" title="Listen">
+                                <i class="fa-solid fa-volume-high"></i>
+                            </button>
+                        </div>
+                        <p id="quiz-question-sub" class="text-sm text-slate-500 mt-1 font-medium">Pānī</p>
+                    </div>
+
+                    <!-- Multiple Choice Options Container -->
+                    <div id="quiz-mc-options" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                        <!-- Options injected via JS -->
+                    </div>
+
+                    <!-- Fill-in-the-Blank / Translation Input Container -->
+                    <div id="quiz-input-container" class="hidden mb-6">
+                        <label for="quiz-text-answer" class="block text-sm font-semibold text-slate-700 mb-2">Type your translation or transliteration:</label>
+                        <div class="flex flex-col sm:flex-row gap-2.5">
+                            <input type="text" id="quiz-text-answer" placeholder="Type answer here..." autocomplete="off" class="flex-1 rounded-xl border border-slate-300 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-brand-500">
+                            <button id="btn-submit-text-answer" type="button" class="px-6 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm transition">
+                                Check Answer
+                            </button>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-2">Tip: Accents and capitalization are flexible.</p>
+                    </div>
+
+                    <!-- Instant Feedback Box -->
+                    <div id="quiz-feedback-box" class="hidden rounded-2xl p-4 mb-6 border">
+                        <div class="flex items-start gap-3">
+                            <i id="quiz-feedback-icon" class="fa-solid fa-circle-check text-xl mt-0.5"></i>
+                            <div>
+                                <p id="quiz-feedback-title" class="font-bold text-sm sm:text-base">Correct!</p>
+                                <p id="quiz-feedback-explanation" class="text-xs sm:text-sm mt-1 opacity-90"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Next Question Footer -->
+                    <div class="flex justify-end">
+                        <button id="btn-quiz-next" class="hidden px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm transition flex items-center gap-2">
+                            <span>Next Question</span>
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Quiz Summary Screen -->
+                <div id="quiz-summary-container" class="hidden bg-white rounded-3xl border border-slate-200 p-8 text-center shadow-md">
+                    <div class="w-20 h-20 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center mx-auto mb-4 text-3xl">
+                        <i class="fa-solid fa-award"></i>
+                    </div>
+                    <h3 class="text-2xl font-extrabold text-slate-900">Quiz Complete!</h3>
+                    <p class="text-slate-500 text-sm mt-1">Your progress has been saved to your dashboard.</p>
+
+                    <div class="grid grid-cols-3 gap-3 max-w-md mx-auto my-6">
+                        <div class="bg-slate-50 rounded-2xl p-3.5 border border-slate-100">
+                            <p class="text-xs text-slate-500 font-semibold">Score</p>
+                            <p id="summary-score" class="text-xl font-extrabold text-slate-900 mt-1">4/5</p>
+                        </div>
+                        <div class="bg-slate-50 rounded-2xl p-3.5 border border-slate-100">
+                            <p class="text-xs text-slate-500 font-semibold">Accuracy</p>
+                            <p id="summary-accuracy" class="text-xl font-extrabold text-emerald-600 mt-1">80%</p>
+                        </div>
+                        <div class="bg-slate-50 rounded-2xl p-3.5 border border-slate-100">
+                            <p class="text-xs text-slate-500 font-semibold">XP Earned</p>
+                            <p id="summary-xp" class="text-xl font-extrabold text-brand-600 mt-1">+60</p>
+                        </div>
+                    </div>
+
+                    <button id="btn-retake-quiz" class="px-6 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm shadow-sm transition">
+                        Practice Again
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================================= -->
+        <!-- TAB 3: CUSTOM FLASHCARD CREATOR & MY DECK                 -->
+        <!-- ========================================================= -->
+        <section id="tab-custom" class="tab-panel hidden animate-fade-in">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Left Column: Add Custom Flashcard Form -->
+                <div class="lg:col-span-5">
+                    <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+                        <h2 class="text-xl font-bold text-slate-900 mb-1">Create Custom Flashcard</h2>
+                        <p class="text-xs text-slate-500 mb-5">Add new words or phrases to your active language deck. Saved locally in your browser.</p>
+
+                        <form id="custom-card-form" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Target Language</label>
+                                <select id="custom-lang" class="w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                                    <option value="kumaoni">Kumaoni (कुमाऊँनी)</option>
+                                    <option value="hindi">Hindi (हिन्दी)</option>
+                                    <option value="spanish">Spanish (Español)</option>
+                                    <option value="french">French (Français)</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Category</label>
+                                <select id="custom-category" class="w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                                    <option value="Vocabulary">Vocabulary</option>
+                                    <option value="Daily Phrases">Daily Phrases</option>
+                                    <option value="Grammar">Grammar</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label for="custom-word" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Word or Phrase (Target Script) *</label>
+                                <input type="text" id="custom-word" required placeholder="e.g., भलो छ (or Hola)" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                            </div>
+
+                            <div>
+                                <label for="custom-translit" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Transliteration / Phonetic Guide</label>
+                                <input type="text" id="custom-translit" placeholder="e.g., Bhalo chha (buh-lo chuh)" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                            </div>
+
+                            <div>
+                                <label for="custom-meaning" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">English Translation *</label>
+                                <input type="text" id="custom-meaning" required placeholder="e.g., It is good / Doing well" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                            </div>
+
+                            <div>
+                                <label for="custom-example" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Example Sentence (Optional)</label>
+                                <input type="text" id="custom-example" placeholder="e.g., आज मौसम भलो छ।" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                            </div>
+
+                            <div>
+                                <label for="custom-example-en" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Example Translation (Optional)</label>
+                                <input type="text" id="custom-example-en" placeholder="e.g., Today the weather is nice." class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                            </div>
+
+                            <button type="submit" class="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm shadow-sm transition flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-plus"></i>
+                                <span>Save to Deck (+15 XP)</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Right Column: User's Custom Cards List -->
+                <div class="lg:col-span-7">
+                    <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 class="text-lg font-bold text-slate-900">My Custom Cards</h3>
+                                <p class="text-xs text-slate-500">Cards you've created are automatically included in Flashcards & Quizzes.</p>
+                            </div>
+                            <span id="custom-cards-count" class="px-3 py-1 rounded-full bg-brand-50 text-brand-700 text-xs font-bold">0 Cards</span>
+                        </div>
+
+                        <div id="custom-cards-list" class="space-y-3 max-h-[540px] overflow-y-auto pr-1">
+                            <!-- Custom cards rendered here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================================= -->
+        <!-- TAB 4: PROGRESS DASHBOARD                                 -->
+        <!-- ========================================================= -->
+        <section id="tab-progress" class="tab-panel hidden animate-fade-in">
+            <div class="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-900">Learning Progress</h2>
+                    <p class="text-sm text-slate-500 mt-0.5">Your achievements, mastery across languages, and study consistency.</p>
+                </div>
+                <button id="btn-reset-progress" class="self-start sm:self-auto px-4 py-2 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold transition">
+                    Reset Local Data
+                </button>
+            </div>
+
+            <!-- 4 Key Metric Cards -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                    <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center mb-3">
+                        <i class="fa-solid fa-fire text-lg"></i>
+                    </div>
+                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Daily Streak</p>
+                    <p class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1"><span id="stat-streak">1</span> <span class="text-sm font-medium text-slate-500">Days</span></p>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                    <div class="w-10 h-10 rounded-xl bg-brand-100 text-brand-600 flex items-center justify-center mb-3">
+                        <i class="fa-solid fa-bolt text-lg"></i>
+                    </div>
+                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total XP</p>
+                    <p class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1"><span id="stat-xp">0</span> <span class="text-sm font-medium text-slate-500">XP</span></p>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3">
+                        <i class="fa-solid fa-circle-check text-lg"></i>
+                    </div>
+                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Mastered Words</p>
+                    <p class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1"><span id="stat-mastered">0</span> <span class="text-sm font-medium text-slate-500">Cards</span></p>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                    <div class="w-10 h-10 rounded-xl bg-violet-100 text-violet-600 flex items-center justify-center mb-3">
+                        <i class="fa-solid fa-bullseye text-lg"></i>
+                    </div>
+                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Quiz Accuracy</p>
+                    <p class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1"><span id="stat-accuracy">0</span>%</p>
+                </div>
+            </div>
+
+            <!-- Language-by-Language Mastery Breakdown -->
+            <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+                <h3 class="text-lg font-bold text-slate-900 mb-4">Mastery by Language</h3>
+                <div id="language-progress-bars" class="space-y-5">
+                    <!-- Rendered dynamically via JS -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Custom Confirmation Modal (Replaces window.confirm) -->
+    <div id="confirm-modal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-200">
+            <h3 class="text-lg font-bold text-slate-900">Reset All Progress?</h3>
+            <p class="text-sm text-slate-500 mt-2">This will clear your XP, streak, mastered cards, quiz scores, and custom flashcards from local storage. This cannot be undone.</p>
+            <div class="flex justify-end gap-2.5 mt-6">
+                <button id="btn-cancel-reset" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold transition">Cancel</button>
+                <button id="btn-confirm-reset" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold transition">Yes, Reset</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * LinguaSpark Application Logic
+         * Architecture:
+         * 1. BUILTIN_DECKS: Curated lessons for Kumaoni, Hindi, Spanish, and French across Vocabulary, Daily Phrases, and Grammar.
+         * 2. State & Persistence: Managed via `appState` synchronized with `localStorage`.
+         * 3. Speech Engine: Uses Web Speech API (`speechSynthesis`) for Hindi, Spanish, French, and intelligent Devanagari/phonetic fallback for Kumaoni.
+         * 4. Interactive Modules: Flashcard 3D controller, Adaptive Quiz Generator (MC + Fill-in-the-blank), Custom Deck CRUD, and Progress Analytics.
+         */
+
+        const STORAGE_KEY = 'linguaspark_state_v1';
+
+        const LANGUAGE_META = {
+            kumaoni: {
+                name: 'Kumaoni',
+                nativeName: 'कुमाऊँनी',
+                flag: '🏔️',
+                speechLang: 'hi-IN', // Uses Hindi Devanagari synthesis + explicit phonetic guide
+                hasNativeTTS: false,
+                description: 'Central Pahari language spoken in the Kumaon region of Uttarakhand, India.'
+            },
+            hindi: {
+                name: 'Hindi',
+                nativeName: 'हिन्दी',
+                flag: '🇮🇳',
+                speechLang: 'hi-IN',
+                hasNativeTTS: true,
+                description: 'Indo-Aryan language spoken across northern and central India.'
+            },
+            spanish: {
+                name: 'Spanish',
+                nativeName: 'Español',
+                flag: '🇪🇸',
+                speechLang: 'es-ES',
+                hasNativeTTS: true,
+                description: 'Global Romance language spoken across Spain and the Americas.'
+            },
+            french: {
+                name: 'French',
+                nativeName: 'Français',
+                flag: '🇫🇷',
+                speechLang: 'fr-FR',
+                hasNativeTTS: true,
+                description: 'Romance language known for expressive idioms and clear liaison rules.'
+            }
+        };
+
+        const BUILTIN_CARDS = [
+            // ================= KUMAONI =================
+            {
+                id: 'kum-1', lang: 'kumaoni', category: 'Daily Phrases',
+                word: 'पैलाग / नमस्कार', translit: 'Pailāg / Namaskār',
+                phonetic: 'pai-laag (traditional respectful greeting to elders)',
+                meaning: 'Greetings / I touch your feet (Respectful Hello)',
+                example: 'पैलाग आमा, कतु भल छौ?', exampleTranslit: 'Pailāg āmā, katu bhal chhau?',
+                exampleEn: 'Respectful greetings grandmother, how well are you?',
+                grammarNote: '"Pailāg" is traditionally said to elders, who reply "Jī rāyā" (May you live long).'
+            },
+            {
+                id: 'kum-2', lang: 'kumaoni', category: 'Daily Phrases',
+                word: 'कतु हाल छन?', translit: 'Katu hāl chhan?',
+                phonetic: 'kuh-too haal chhun',
+                meaning: 'How are you? / How are things?',
+                example: 'ओ भुला, आजकल कतु हाल छन?', exampleTranslit: 'O bhulā, ājkal katu hāl chhan?',
+                exampleEn: 'Hey younger brother, how are things these days?',
+                grammarNote: '"Chhan" is the plural/respectful auxiliary verb equivalent to Hindi "hain".'
+            },
+            {
+                id: 'kum-3', lang: 'kumaoni', category: 'Vocabulary',
+                word: 'पाणी', translit: 'Pāṇī',
+                phonetic: 'paa-nee (with retroflex ṇ)',
+                meaning: 'Water',
+                example: 'नौला को ठंडो पाणी मीठो छ।', exampleTranslit: 'Naulā ko ṭhaṇḍo pāṇī mīṭho chha.',
+                exampleEn: 'The cold water of the stone spring (naula) is sweet.',
+                grammarNote: 'Kumaoni frequently retains the retroflex "ण" (ṇ) sound where Hindi uses "न" (n).'
+            },
+            {
+                id: 'kum-4', lang: 'kumaoni', category: 'Vocabulary',
+                word: 'डाना-काना', translit: 'Ḍānā-kānā',
+                phonetic: 'daa-naa kaa-naa',
+                meaning: 'Hills and Mountains',
+                example: 'हमरो पहाड़ डाना-काना ले सजी रौ।', exampleTranslit: 'Hamro pahāṛ ḍānā-kānā le sajī rau.',
+                exampleEn: 'Our homeland is adorned with hills and mountains.',
+                grammarNote: 'Echo-word compounding is a hallmark of Kumaoni expressive vocabulary.'
+            },
+            {
+                id: 'kum-5', lang: 'kumaoni', category: 'Grammar',
+                word: 'छ / छौ / छन', translit: 'Chha / Chhau / Chhan',
+                phonetic: 'chhuh / chhau / chhun',
+                meaning: 'Is / Are (Present Tense "To Be")',
+                example: 'उ घर में छ। / तुम कख छौ?', exampleTranslit: 'U ghar me chha. / Tum kakh chhau?',
+                exampleEn: 'He/She is at home. / Where are you?',
+                grammarNote: 'Use "छ" (chha) for 3rd person singular, "छौ" (chhau) for 2nd person, and "छन" (chhan) for plural.'
+            },
+            {
+                id: 'kum-6', lang: 'kumaoni', category: 'Grammar',
+                word: 'कख जाँछौ?', translit: 'Kakh jā̃chhau?',
+                phonetic: 'kuhkh jaan-chhau',
+                meaning: 'Where are you going?',
+                example: 'तुम भोल कख जाँछौ?', exampleTranslit: 'Tum bhol kakh jā̃chhau?',
+                exampleEn: 'Where are you going tomorrow?',
+                grammarNote: '"कख" (kakh) means "where", and "भोल" (bhol) means "tomorrow" in Kumaoni.'
+            },
+
+            // ================= HINDI =================
+            {
+                id: 'hin-1', lang: 'hindi', category: 'Daily Phrases',
+                word: 'आप कैसे हैं?', translit: 'Āp kaise hain?',
+                phonetic: 'aap kai-say hain',
+                meaning: 'How are you? (Formal)',
+                example: 'नमस्ते जी, आज आप कैसे हैं?', exampleTranslit: 'Namaste jī, āj āp kaise hain?',
+                exampleEn: 'Hello, how are you today?',
+                grammarNote: 'Use "कैसे" (kaise) for masculine subjects and "कैसी" (kaisī) when addressing a woman.'
+            },
+            {
+                id: 'hin-2', lang: 'hindi', category: 'Daily Phrases',
+                word: 'बहुत धन्यवाद', translit: 'Bahut dhanyavād',
+                phonetic: 'buh-hut dhun-yuh-vaad',
+                meaning: 'Thank you very much',
+                example: 'आपकी मदद के लिए बहुत धन्यवाद।', exampleTranslit: 'Āpkī madad ke lie bahut dhanyavād.',
+                exampleEn: 'Thank you very much for your help.',
+                grammarNote: '"शुक्रिया" (Shukriyā) is an equally common everyday alternative.'
+            },
+            {
+                id: 'hin-3', lang: 'hindi', category: 'Vocabulary',
+                word: 'किताब', translit: 'Kitāb',
+                phonetic: 'ki-taab',
+                meaning: 'Book',
+                example: 'यह किताब बहुत दिलचस्प है।', exampleTranslit: 'Yah kitāb bahut dilchasp hai.',
+                exampleEn: 'This book is very interesting.',
+                grammarNote: '"किताब" is a feminine noun in Hindi (e.g., मेरी किताब - my book).'
+            },
+            {
+                id: 'hin-4', lang: 'hindi', category: 'Vocabulary',
+                word: 'सुबह', translit: 'Subah',
+                phonetic: 'su-buh',
+                meaning: 'Morning',
+                example: 'मैं हर सुबह चाय पीता हूँ।', exampleTranslit: 'Main har subah chāy pītā hū̃.',
+                exampleEn: 'I drink tea every morning.',
+                grammarNote: 'Pairs with "शाम" (shām - evening) and "रात" (rāt - night).'
+            },
+            {
+                id: 'hin-5', lang: 'hindi', category: 'Grammar',
+                word: 'में / पर (Postpositions)', translit: 'Me / Par',
+                phonetic: 'may / pur',
+                meaning: 'In / On (Postpositions)',
+                example: 'मेज़ पर एक सेब रखा है।', exampleTranslit: 'Mez par ek seb rakhā hai.',
+                exampleEn: 'An apple is kept on the table.',
+                grammarNote: 'Unlike English prepositions, Hindi postpositions follow the noun they modify.'
+            },
+
+            // ================= SPANISH =================
+            {
+                id: 'spa-1', lang: 'spanish', category: 'Daily Phrases',
+                word: '¿Cómo estás?', translit: 'KOH-moh ehs-TAHS',
+                phonetic: 'KOH-moh ehs-TAHS',
+                meaning: 'How are you? (Informal)',
+                example: '¡Hola amigo! ¿Cómo estás hoy?', exampleTranslit: 'OH-lah ah-MEE-goh! KOH-moh ehs-TAHS oy?',
+                exampleEn: 'Hello friend! How are you today?',
+                grammarNote: 'Spanish uses "estar" (not "ser") for temporary states like feelings and locations.'
+            },
+            {
+                id: 'spa-2', lang: 'spanish', category: 'Daily Phrases',
+                word: 'Mucho gusto', translit: 'MOO-choh GOOS-toh',
+                phonetic: 'MOO-choh GOOS-toh',
+                meaning: 'Nice to meet you',
+                example: 'Soy Carlos, mucho gusto en conocerte.', exampleTranslit: 'Soy KAR-lohs, MOO-choh GOOS-toh ehn koh-noh-SEHR-teh.',
+                exampleEn: 'I am Carlos, nice to meet you.',
+                grammarNote: 'Literally translates to "much pleasure".'
+            },
+            {
+                id: 'spa-3', lang: 'spanish', category: 'Vocabulary',
+                word: 'La biblioteca', translit: 'lah bee-blyoh-TEH-kah',
+                phonetic: 'lah bee-blyoh-TEH-kah',
+                meaning: 'The library',
+                example: 'Estudio español en la biblioteca.', exampleTranslit: 'Ehs-TOO-dyoh ehs-pah-NYOHL ehn lah bee-blyoh-TEH-kah.',
+                exampleEn: 'I study Spanish in the library.',
+                grammarNote: 'False friend alert: "La librería" means bookstore, whereas "la biblioteca" means library.'
+            },
+            {
+                id: 'spa-4', lang: 'spanish', category: 'Vocabulary',
+                word: 'El desayuno', translit: 'ehl deh-sah-YOO-noh',
+                phonetic: 'ehl deh-sah-YOO-noh',
+                meaning: 'Breakfast',
+                example: 'El desayuno está listo.', exampleTranslit: 'Ehl deh-sah-YOO-noh ehs-TAH LEES-toh.',
+                exampleEn: 'Breakfast is ready.',
+                grammarNote: 'Derived from "des-ayunar" (to break the fast).'
+            },
+            {
+                id: 'spa-5', lang: 'spanish', category: 'Grammar',
+                word: 'Ser vs. Estar', translit: 'sehr vs. ehs-TAHR',
+                phonetic: 'sehr / ehs-TAHR',
+                meaning: 'To be (Permanent vs. Temporary)',
+                example: 'Ella es médica, pero hoy está cansada.', exampleTranslit: 'EH-yah ehs MEH-dee-kah, PEH-roh oy ehs-TAH kahn-SAH-dah.',
+                exampleEn: 'She is a doctor, but today she is tired.',
+                grammarNote: 'Use SER for identity/professions and ESTAR for emotions, conditions, and locations.'
+            },
+
+            // ================= FRENCH =================
+            {
+                id: 'fre-1', lang: 'french', category: 'Daily Phrases',
+                word: 'Enchanté(e)', translit: 'ahn-shahn-TAY',
+                phonetic: 'ahn-shahn-TAY',
+                meaning: 'Delighted / Nice to meet you',
+                example: 'Bonjour, je m’appelle Camille. Enchantée !', exampleTranslit: 'bohn-ZHOOR, zhuh mah-PEL kah-MEE. ahn-shahn-TAY!',
+                exampleEn: 'Hello, my name is Camille. Nice to meet you!',
+                grammarNote: 'Add a silent "-e" in writing if the speaker identifies as female.'
+            },
+            {
+                id: 'fre-2', lang: 'french', category: 'Daily Phrases',
+                word: 'S’il vous plaît', translit: 'seel voo PLEH',
+                phonetic: 'seel voo PLEH',
+                meaning: 'Please (Formal / Plural)',
+                example: 'Un café crème, s’il vous plaît.', exampleTranslit: 'uhn kah-FAY krem, seel voo PLEH.',
+                exampleEn: 'One coffee with cream, please.',
+                grammarNote: 'Use "s’il te plaît" with close friends, family, or children.'
+            },
+            {
+                id: 'fre-3', lang: 'french', category: 'Vocabulary',
+                word: 'La boulangerie', translit: 'lah boo-lahn-zhuh-REE',
+                phonetic: 'lah boo-lahn-zhuh-REE',
+                meaning: 'The bakery',
+                example: 'J’achète une baguette à la boulangerie.', exampleTranslit: 'zhah-SHET oon bah-GET ah lah boo-lahn-zhuh-REE.',
+                exampleEn: 'I buy a baguette at the bakery.',
+                grammarNote: 'In France, a "boulangerie" bakes bread on-site, while a "pâtisserie" specializes in pastries.'
+            },
+            {
+                id: 'fre-4', lang: 'french', category: 'Vocabulary',
+                word: 'Le parapluie', translit: 'luh pah-rah-PLWEE',
+                phonetic: 'luh pah-rah-PLWEE',
+                meaning: 'The umbrella',
+                example: 'Prends ton parapluie, il pleut !', exampleTranslit: 'prahn tohn pah-rah-PLWEE, eel pluh!',
+                exampleEn: 'Take your umbrella, it is raining!',
+                grammarNote: 'Literally "para-pluie" (shields against rain).'
+            },
+            {
+                id: 'fre-5', lang: 'french', category: 'Grammar',
+                word: 'Articles: Le, La, Les', translit: 'luh, lah, lay',
+                phonetic: 'luh / lah / lay',
+                meaning: 'Definite Articles ("The")',
+                example: 'Le livre, la pomme, les amis.', exampleTranslit: 'luh LEEV-ruh, lah pohm, lay zah-MEE.',
+                exampleEn: 'The book, the apple, the friends.',
+                grammarNote: '"Le" is masculine, "la" is feminine, and "les" is plural for both genders.'
+            }
+        ];
+
+        // Default Application State
+        const defaultState = {
+            selectedLang: 'kumaoni',
+            xp: 0,
+            streak: 1,
+            lastActiveDate: new Date().toISOString().slice(0, 10),
+            masteredIds: [],
+            practiceIds: [],
+            customCards: [],
+            quizStats: {
+                totalAnswered: 0,
+                totalCorrect: 0
+            }
+        };
+
+        let appState = loadState();
+
+        // Runtime UI State
+        let activeTab = 'learn';
+        let selectedCategory = 'All';
+        let unmasteredOnly = false;
+        let currentDeck = [];
+        let currentCardIndex = 0;
+        let isCardFlipped = false;
+
+        // Quiz Runtime State
+        let quizQuestions = [];
+        let quizCurrentIdx = 0;
+        let quizScore = 0;
+        let quizAnsweredCurrent = false;
+
+        /**
+         * Load and migrate state safely from localStorage
+         */
+        function loadState() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return { ...defaultState };
+                const parsed = JSON.parse(raw);
+                const today = new Date().toISOString().slice(0, 10);
+
+                // Streak calculation
+                let streak = parsed.streak || 1;
+                if (parsed.lastActiveDate && parsed.lastActiveDate !== today) {
+                    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+                    if (parsed.lastActiveDate === yesterday) {
+                        streak += 1;
+                    } else {
+                        streak = 1;
+                    }
+                }
+
+                return {
+                    ...defaultState,
+                    ...parsed,
+                    streak,
+                    lastActiveDate: today
+                };
+            } catch (e) {
+                console.error('Failed to read localStorage:', e);
+                return { ...defaultState };
+            }
+        }
+
+        function saveState() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+                updateHeaderStats();
+            } catch (e) {
+                console.error('Failed to save localStorage:', e);
+            }
+        }
+
+        /**
+         * Toast notification helper (never uses alert())
+         */
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const colors = {
+                success: 'bg-emerald-600 text-white',
+                warning: 'bg-amber-600 text-white',
+                info: 'bg-slate-900 text-white'
+            };
+            toast.className = `${colors[type] || colors.info} px-4 py-3 rounded-xl shadow-lg text-sm font-semibold flex items-center gap-2.5 pointer-events-auto transition-all duration-300 translate-y-2 opacity-0`;
+            toast.innerHTML = `<span>${message}</span>`;
+            container.appendChild(toast);
+
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 2600);
+        }
+
+        /**
+         * Text-to-Speech Engine with Web Speech API + Phonetic Fallback
+         */
+        function speakText(text, langKey, phoneticFallback = '') {
+            const meta = LANGUAGE_META[langKey] || LANGUAGE_META.hindi;
+            const btns = document.querySelectorAll('.pronounce-btn, #quiz-audio-btn');
+
+            if (!('speechSynthesis' in window)) {
+                showToast(`Phonetic guide: ${phoneticFallback || text}`, 'warning');
+                return;
+            }
+
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = meta.speechLang;
+            utterance.rate = 0.88;
+
+            // Attempt to match an appropriate voice if loaded
+            const voices = window.speechSynthesis.getVoices();
+            const matchedVoice = voices.find(v => v.lang.toLowerCase().startsWith(meta.speechLang.slice(0, 2).toLowerCase()));
+            if (matchedVoice) {
+                utterance.voice = matchedVoice;
+            }
+
+            utterance.onstart = () => {
+                btns.forEach(b => b.classList.add('speaking-pulse'));
+            };
+            utterance.onend = () => {
+                btns.forEach(b => b.classList.remove('speaking-pulse'));
+            };
+            utterance.onerror = () => {
+                btns.forEach(b => b.classList.remove('speaking-pulse'));
+                if (phoneticFallback) {
+                    showToast(`Phonetic: ${phoneticFallback}`, 'info');
+                }
+            };
+
+            window.speechSynthesis.speak(utterance);
+
+            if (!meta.hasNativeTTS && phoneticFallback) {
+                showToast(`Phonetic guide: ${phoneticFallback}`, 'info');
+            }
+        }
+
+        /**
+         * Combine built-in cards and user's custom cards for a given language
+         */
+        function getAllCardsForLanguage(langKey) {
+            const builtIn = BUILTIN_CARDS.filter(c => c.lang === langKey);
+            const custom = appState.customCards.filter(c => c.lang === langKey);
+            return [...builtIn, ...custom];
+        }
+
+        /**
+         * Rebuild filtered flashcard deck and render active card
+         */
+        function refreshFlashcardDeck(resetIndex = true) {
+            const langKey = appState.selectedLang;
+            const meta = LANGUAGE_META[langKey];
+
+            // Update Header Info
+            document.getElementById('learn-lang-title').textContent = `${meta.name} (${meta.nativeName}) Lessons`;
+            document.getElementById('learn-lang-desc').textContent = meta.description;
+            const badge = document.getElementById('learn-lang-badge');
+            if (meta.hasNativeTTS) {
+                badge.textContent = 'Web Speech TTS Enabled';
+                badge.className = 'text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800';
+            } else {
+                badge.textContent = 'Devanagari TTS + Phonetic Guide';
+                badge.className = 'text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800';
+            }
+
+            // Filter cards
+            let cards = getAllCardsForLanguage(langKey);
+            if (selectedCategory !== 'All') {
+                cards = cards.filter(c => c.category === selectedCategory);
+            }
+            if (unmasteredOnly) {
+                cards = cards.filter(c => !appState.masteredIds.includes(c.id));
+            }
+
+            currentDeck = cards;
+            if (resetIndex || currentCardIndex >= currentDeck.length) {
+                currentCardIndex = 0;
+            }
+
+            renderCurrentFlashcard();
+        }
+
+        function renderCurrentFlashcard() {
+            const stage = document.getElementById('flashcard-stage');
+            const emptyState = document.getElementById('flashcard-empty-state');
+            const total = currentDeck.length;
+
+            document.getElementById('card-counter-total').textContent = total;
+
+            if (total === 0) {
+                stage.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                document.getElementById('card-counter-current').textContent = '0';
+                document.getElementById('deck-progress-bar').style.width = '0%';
+                return;
+            }
+
+            stage.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+
+            // Ensure card starts unflipped when switching
+            isCardFlipped = false;
+            document.getElementById('flashcard-inner').classList.remove('rotate-y-180');
+
+            const card = currentDeck[currentCardIndex];
+            const currentNum = currentCardIndex + 1;
+            document.getElementById('card-counter-current').textContent = currentNum;
+            document.getElementById('deck-progress-bar').style.width = `${Math.round((currentNum / total) * 100)}%`;
+
+            // Populate Front
+            document.getElementById('card-category-tag').textContent = card.category;
+            document.getElementById('card-front-word').textContent = card.word;
+            document.getElementById('card-front-translit').textContent = card.translit || '';
+
+            // Mastery Badge
+            const masteryBadge = document.getElementById('card-mastery-badge');
+            if (appState.masteredIds.includes(card.id)) {
+                masteryBadge.textContent = '✓ Mastered';
+                masteryBadge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700';
+            } else if (appState.practiceIds.includes(card.id)) {
+                masteryBadge.textContent = 'Needs Practice';
+                masteryBadge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700';
+            } else {
+                masteryBadge.textContent = 'In Progress';
+                masteryBadge.className = 'px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-500';
+            }
+
+            // Populate Back
+            document.getElementById('card-back-meaning').textContent = card.meaning;
+            document.getElementById('card-back-example').textContent = card.example || card.word;
+            document.getElementById('card-back-example-translit').textContent = card.exampleTranslit || '';
+            document.getElementById('card-back-example-en').textContent = card.exampleEn ? `"${card.exampleEn}"` : '';
+
+            const phoneticBox = document.getElementById('card-phonetic-box');
+            if (card.phonetic) {
+                phoneticBox.classList.remove('hidden');
+                document.getElementById('card-phonetic-guide').textContent = `Phonetic Guide: ${card.phonetic}`;
+            } else {
+                phoneticBox.classList.add('hidden');
+            }
+        }
+
+        /**
+         * Interactive Practice Quiz Generator & Controller
+         */
+        function startQuiz() {
+            const langKey = appState.selectedLang;
+            const meta = LANGUAGE_META[langKey];
+            const catFilter = document.getElementById('quiz-category-select').value;
+
+            document.getElementById('quiz-lang-name').textContent = `${meta.name} (${meta.nativeName})`;
+
+            let pool = getAllCardsForLanguage(langKey);
+            if (catFilter !== 'All') {
+                const filtered = pool.filter(c => c.category === catFilter);
+                if (filtered.length >= 2) pool = filtered;
+            }
+
+            const allLangCards = getAllCardsForLanguage(langKey);
+            const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, 5);
+
+            quizQuestions = shuffled.map((card, idx) => {
+                // Alternate between Multiple Choice and Fill-in-the-blank/Translation
+                const isFillInBlank = idx % 2 === 1 && idx > 0;
+
+                if (isFillInBlank) {
+                    return {
+                        type: 'input',
+                        card,
+                        promptInstruction: `Type the English meaning or transliteration`,
+                        questionText: card.word,
+                        questionSub: card.category === 'Grammar' ? 'Grammar Concept' : '',
+                        acceptedAnswers: [
+                            card.meaning.toLowerCase(),
+                            ...card.meaning.toLowerCase().split('/').map(s => s.trim()),
+                            ...(card.translit ? card.translit.toLowerCase().split('/').map(s => s.trim()) : [])
+                        ].filter(Boolean),
+                        explanation: card.grammarNote || `${card.word} (${card.translit}) means "${card.meaning}".`
+                    };
+                } else {
+                    // Build 4 distinct options
+                    const distractors = allLangCards
+                        .filter(c => c.id !== card.id)
+                        .sort(() => Math.random() - 0.5)
+                        .slice(0, 3)
+                        .map(c => c.meaning);
+
+                    const options = [card.meaning, ...distractors].sort(() => Math.random() - 0.5);
+
+                    return {
+                        type: 'mc',
+                        card,
+                        promptInstruction: 'Select the correct English translation',
+                        questionText: card.word,
+                        questionSub: card.translit || '',
+                        options,
+                        correctAnswer: card.meaning,
+                        explanation: card.grammarNote || `Example: ${card.example || card.word} — "${card.exampleEn || card.meaning}"`
+                    };
+                }
+            });
+
+            quizCurrentIdx = 0;
+            quizScore = 0;
+            document.getElementById('quiz-summary-container').classList.add('hidden');
+            document.getElementById('quiz-active-container').classList.remove('hidden');
+            renderQuizQuestion();
+        }
+
+        function renderQuizQuestion() {
+            quizAnsweredCurrent = false;
+            const q = quizQuestions[quizCurrentIdx];
+
+            document.getElementById('quiz-q-num').textContent = quizCurrentIdx + 1;
+            document.getElementById('quiz-q-total').textContent = quizQuestions.length;
+            document.getElementById('quiz-live-score').textContent = quizScore;
+            document.getElementById('quiz-prompt-instruction').textContent = q.promptInstruction;
+            document.getElementById('quiz-question-text').textContent = q.questionText;
+            document.getElementById('quiz-question-sub').textContent = q.questionSub;
+
+            const feedbackBox = document.getElementById('quiz-feedback-box');
+            feedbackBox.classList.add('hidden');
+            document.getElementById('btn-quiz-next').classList.add('hidden');
+
+            const mcContainer = document.getElementById('quiz-mc-options');
+            const inputContainer = document.getElementById('quiz-input-container');
+            const badge = document.getElementById('quiz-type-badge');
+
+            if (q.type === 'mc') {
+                badge.textContent = 'Multiple Choice';
+                mcContainer.classList.remove('hidden');
+                inputContainer.classList.add('hidden');
+                mcContainer.innerHTML = '';
+
+                q.options.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'quiz-opt-btn text-left p-4 rounded-2xl border-2 border-slate-200 hover:border-brand-500 hover:bg-brand-50/40 font-semibold text-sm sm:text-base text-slate-800 transition';
+                    btn.textContent = opt;
+                    btn.addEventListener('click', () => handleMCSelection(btn, opt));
+                    mcContainer.appendChild(btn);
+                });
+            } else {
+                badge.textContent = 'Translation Recall';
+                mcContainer.classList.add('hidden');
+                inputContainer.classList.remove('hidden');
+                const inputEl = document.getElementById('quiz-text-answer');
+                inputEl.value = '';
+                inputEl.disabled = false;
+                document.getElementById('btn-submit-text-answer').disabled = false;
+                setTimeout(() => inputEl.focus(), 50);
+            }
+        }
+
+        function handleMCSelection(clickedBtn, chosenOption) {
+            if (quizAnsweredCurrent) return;
+            quizAnsweredCurrent = true;
+
+            const q = quizQuestions[quizCurrentIdx];
+            const isCorrect = chosenOption === q.correctAnswer;
+
+            document.querySelectorAll('.quiz-opt-btn').forEach(btn => {
+                btn.disabled = true;
+                if (btn.textContent === q.correctAnswer) {
+                    btn.classList.remove('border-slate-200');
+                    btn.classList.add('border-emerald-500', 'bg-emerald-50', 'text-emerald-900');
+                } else if (btn === clickedBtn && !isCorrect) {
+                    btn.classList.remove('border-slate-200');
+                    btn.classList.add('border-rose-500', 'bg-rose-50', 'text-rose-900');
+                }
+            });
+
+            finalizeQuizAnswer(isCorrect, q.explanation, q.correctAnswer);
+        }
+
+        function handleTextAnswerSubmit() {
+            if (quizAnsweredCurrent) return;
+            const inputEl = document.getElementById('quiz-text-answer');
+            const userVal = inputEl.value.trim().toLowerCase().replace(/[?.!,]/g, '');
+            if (!userVal) {
+                showToast('Please enter an answer first.', 'warning');
+                return;
+            }
+
+            quizAnsweredCurrent = true;
+            inputEl.disabled = true;
+            document.getElementById('btn-submit-text-answer').disabled = true;
+
+            const q = quizQuestions[quizCurrentIdx];
+            // Flexible matching: exact match or substantial substring match (>= 4 chars)
+            const isCorrect = q.acceptedAnswers.some(ans => {
+                const cleanAns = ans.replace(/[?.!,()]/g, '').trim();
+                return cleanAns === userVal || (userVal.length >= 4 && cleanAns.includes(userVal));
+            });
+
+            finalizeQuizAnswer(isCorrect, q.explanation, q.card.meaning);
+        }
+
+        function finalizeQuizAnswer(isCorrect, explanation, correctText) {
+            appState.quizStats.totalAnswered += 1;
+            if (isCorrect) {
+                quizScore += 1;
+                appState.quizStats.totalCorrect += 1;
+                appState.xp += 15;
+            }
+            saveState();
+
+            document.getElementById('quiz-live-score').textContent = quizScore;
+
+            const feedbackBox = document.getElementById('quiz-feedback-box');
+            const icon = document.getElementById('quiz-feedback-icon');
+            const title = document.getElementById('quiz-feedback-title');
+            const expEl = document.getElementById('quiz-feedback-explanation');
+
+            feedbackBox.classList.remove('hidden', 'bg-emerald-50', 'border-emerald-200', 'text-emerald-900', 'bg-rose-50', 'border-rose-200', 'text-rose-900');
+
+            if (isCorrect) {
+                feedbackBox.classList.add('bg-emerald-50', 'border-emerald-200', 'text-emerald-900');
+                icon.className = 'fa-solid fa-circle-check text-xl mt-0.5 text-emerald-600';
+                title.textContent = 'Spot on! (+15 XP)';
+            } else {
+                feedbackBox.classList.add('bg-rose-50', 'border-rose-200', 'text-rose-900');
+                icon.className = 'fa-solid fa-circle-xmark text-xl mt-0.5 text-rose-600';
+                title.textContent = `Not quite — Correct answer: ${correctText}`;
+            }
+
+            expEl.textContent = explanation;
+
+            const nextBtn = document.getElementById('btn-quiz-next');
+            nextBtn.classList.remove('hidden');
+            nextBtn.querySelector('span').textContent = quizCurrentIdx === quizQuestions.length - 1 ? 'See Results' : 'Next Question';
+        }
+
+        function showQuizSummary() {
+            document.getElementById('quiz-active-container').classList.add('hidden');
+            document.getElementById('quiz-summary-container').classList.remove('hidden');
+
+            const total = quizQuestions.length;
+            const acc = Math.round((quizScore / total) * 100);
+            document.getElementById('summary-score').textContent = `${quizScore}/${total}`;
+            document.getElementById('summary-accuracy').textContent = `${acc}%`;
+            document.getElementById('summary-xp').textContent = `+${quizScore * 15}`;
+            renderProgressDashboard();
+        }
+
+        /**
+         * Custom Flashcard Deck Management
+         */
+        function renderCustomCardsList() {
+            const container = document.getElementById('custom-cards-list');
+            const countBadge = document.getElementById('custom-cards-count');
+            const cards = appState.customCards;
+
+            countBadge.textContent = `${cards.length} Card${cards.length === 1 ? '' : 's'}`;
+
+            if (cards.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 px-4 border-2 border-dashed border-slate-200 rounded-2xl">
+                        <i class="fa-regular fa-note-sticky text-3xl text-slate-300 mb-2"></i>
+                        <p class="text-sm font-semibold text-slate-600">No custom cards yet</p>
+                        <p class="text-xs text-slate-400 mt-1">Use the form on the left to add local phrases, idioms, or vocabulary.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = cards.slice().reverse().map(card => {
+                const meta = LANGUAGE_META[card.lang] || LANGUAGE_META.kumaoni;
+                return `
+                    <div class="p-4 rounded-2xl border border-slate-200 hover:border-slate-300 bg-slate-50/60 flex items-start justify-between gap-3 transition">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-xs font-bold px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-700">${meta.flag} ${meta.name}</span>
+                                <span class="text-xs font-semibold text-brand-600">${card.category}</span>
+                            </div>
+                            <p class="text-base font-bold text-slate-900">${escapeHTML(card.word)} <span class="text-xs font-normal text-slate-500">${card.translit ? `(${escapeHTML(card.translit)})` : ''}</span></p>
+                            <p class="text-sm text-slate-700 mt-0.5">${escapeHTML(card.meaning)}</p>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <button type="button" onclick="speakText('${escapeAttr(card.word)}', '${card.lang}', '${escapeAttr(card.translit || '')}')" class="p-2 rounded-lg bg-white border border-slate-200 hover:bg-brand-50 text-brand-600 text-xs transition" title="Listen">
+                                <i class="fa-solid fa-volume-high"></i>
+                            </button>
+                            <button type="button" onclick="deleteCustomCard('${card.id}')" class="p-2 rounded-lg bg-white border border-slate-200 hover:bg-rose-50 text-rose-600 text-xs transition" title="Delete Card">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window.deleteCustomCard = function(id) {
+            appState.customCards = appState.customCards.filter(c => c.id !== id);
+            appState.masteredIds = appState.masteredIds.filter(mId => mId !== id);
+            saveState();
+            renderCustomCardsList();
+            refreshFlashcardDeck(false);
+            renderProgressDashboard();
+            showToast('Custom card removed.', 'info');
+        };
+
+        /**
+         * Progress Dashboard Rendering
+         */
+        function updateHeaderStats() {
+            document.getElementById('header-streak').textContent = appState.streak;
+            document.getElementById('header-xp').textContent = appState.xp;
+        }
+
+        function renderProgressDashboard() {
+            updateHeaderStats();
+            document.getElementById('stat-streak').textContent = appState.streak;
+            document.getElementById('stat-xp').textContent = appState.xp;
+            document.getElementById('stat-mastered').textContent = appState.masteredIds.length;
+
+            const { totalAnswered, totalCorrect } = appState.quizStats;
+            const accuracy = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
+            document.getElementById('stat-accuracy').textContent = accuracy;
+
+            const barsContainer = document.getElementById('language-progress-bars');
+            barsContainer.innerHTML = Object.entries(LANGUAGE_META).map(([key, meta]) => {
+                const allCards = getAllCardsForLanguage(key);
+                const masteredCount = allCards.filter(c => appState.masteredIds.includes(c.id)).length;
+                const pct = allCards.length > 0 ? Math.round((masteredCount / allCards.length) * 100) : 0;
+
+                return `
+                    <div>
+                        <div class="flex items-center justify-between text-sm font-semibold mb-1.5">
+                            <span class="text-slate-800">${meta.flag} ${meta.name} <span class="text-slate-400 font-normal">(${meta.nativeName})</span></span>
+                            <span class="text-slate-600">${masteredCount} / ${allCards.length} mastered (${pct}%)</span>
+                        </div>
+                        <div class="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                            <div class="h-full bg-gradient-to-r from-brand-500 to-emerald-500 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        /**
+         * HTML Escaping Utilities
+         */
+        function escapeHTML(str) {
+            return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+        }
+        function escapeAttr(str) {
+            return String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        }
+
+        /**
+         * Event Listeners & Initialization
+         */
+        function initApp() {
+            // Sync initial language dropdowns
+            const langSelect = document.getElementById('language-select');
+            const customLangSelect = document.getElementById('custom-lang');
+            langSelect.value = appState.selectedLang;
+            customLangSelect.value = appState.selectedLang;
+
+            // Global Language Switcher
+            langSelect.addEventListener('change', (e) => {
+                appState.selectedLang = e.target.value;
+                customLangSelect.value = e.target.value;
+                saveState();
+                refreshFlashcardDeck(true);
+                if (activeTab === 'quiz') startQuiz();
+            });
+
+            // Navigation Tabs
+            document.querySelectorAll('.nav-tab').forEach(tabBtn => {
+                tabBtn.addEventListener('click', () => {
+                    const target = tabBtn.dataset.tab;
+                    activeTab = target;
+
+                    document.querySelectorAll('.nav-tab').forEach(b => {
+                        b.classList.remove('active', 'border-brand-600', 'text-brand-600');
+                        b.classList.add('border-transparent', 'text-slate-500');
+                    });
+                    tabBtn.classList.add('active', 'border-brand-600', 'text-brand-600');
+                    tabBtn.classList.remove('border-transparent', 'text-slate-500');
+
+                    document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.add('hidden'));
+                    document.getElementById(`tab-${target}`).classList.remove('hidden');
+
+                    if (target === 'quiz' && quizQuestions.length === 0) startQuiz();
+                    if (target === 'custom') renderCustomCardsList();
+                    if (target === 'progress') renderProgressDashboard();
+                });
+            });
+
+            // Category Pills in Learn Tab
+            document.querySelectorAll('.cat-pill').forEach(pill => {
+                pill.addEventListener('click', () => {
+                    selectedCategory = pill.dataset.cat;
+                    document.querySelectorAll('.cat-pill').forEach(p => {
+                        p.className = 'cat-pill px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 transition';
+                    });
+                    pill.className = 'cat-pill active px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-brand-600 text-white shadow-sm transition';
+                    refreshFlashcardDeck(true);
+                });
+            });
+
+            // Unmastered filter & Shuffle
+            document.getElementById('filter-unmastered-only').addEventListener('change', (e) => {
+                unmasteredOnly = e.target.checked;
+                refreshFlashcardDeck(true);
+            });
+
+            document.getElementById('btn-reset-filter').addEventListener('click', () => {
+                unmasteredOnly = false;
+                document.getElementById('filter-unmastered-only').checked = false;
+                selectedCategory = 'All';
+                document.querySelectorAll('.cat-pill').forEach((p, i) => {
+                    p.className = i === 0
+                        ? 'cat-pill active px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-brand-600 text-white shadow-sm transition'
+                        : 'cat-pill px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 transition';
+                });
+                refreshFlashcardDeck(true);
+            });
+
+            document.getElementById('shuffle-deck-btn').addEventListener('click', () => {
+                if (currentDeck.length > 1) {
+                    currentDeck.sort(() => Math.random() - 0.5);
+                    currentCardIndex = 0;
+                    renderCurrentFlashcard();
+                    showToast('Deck shuffled!', 'info');
+                }
+            });
+
+            // 3D Flashcard Flip
+            document.getElementById('flashcard-wrapper').addEventListener('click', (e) => {
+                if (e.target.closest('button')) return; // Don't flip when clicking audio button
+                isCardFlipped = !isCardFlipped;
+                document.getElementById('flashcard-inner').classList.toggle('rotate-y-180', isCardFlipped);
+            });
+
+            // Audio Pronunciation Buttons on Flashcard
+            document.getElementById('btn-pronounce-front').addEventListener('click', (e) => {
+                e.stopPropagation();
+                const card = currentDeck[currentCardIndex];
+                if (card) speakText(card.word, card.lang, card.phonetic || card.translit);
+            });
+
+            document.getElementById('btn-pronounce-back').addEventListener('click', (e) => {
+                e.stopPropagation();
+                const card = currentDeck[currentCardIndex];
+                if (card) speakText(card.example || card.word, card.lang, card.phonetic || card.translit);
+            });
+
+            // Prev / Next Card Navigation
+            document.getElementById('btn-prev-card').addEventListener('click', () => {
+                if (currentDeck.length === 0) return;
+                currentCardIndex = (currentCardIndex - 1 + currentDeck.length) % currentDeck.length;
+                renderCurrentFlashcard();
+            });
+
+            document.getElementById('btn-next-card').addEventListener('click', () => {
+                if (currentDeck.length === 0) return;
+                currentCardIndex = (currentCardIndex + 1) % currentDeck.length;
+                renderCurrentFlashcard();
+            });
+
+            // Mark as Mastered / Needs Practice
+            document.getElementById('btn-mark-mastered').addEventListener('click', () => {
+                const card = currentDeck[currentCardIndex];
+                if (!card) return;
+
+                if (!appState.masteredIds.includes(card.id)) {
+                    appState.masteredIds.push(card.id);
+                    appState.xp += 10;
+                    showToast('Card mastered! +10 XP', 'success');
+                } else {
+                    showToast('Already mastered!', 'info');
+                }
+                appState.practiceIds = appState.practiceIds.filter(id => id !== card.id);
+                saveState();
+
+                if (unmasteredOnly) {
+                    refreshFlashcardDeck(false);
+                } else {
+                    renderCurrentFlashcard();
+                }
+            });
+
+            document.getElementById('btn-needs-practice').addEventListener('click', () => {
+                const card = currentDeck[currentCardIndex];
+                if (!card) return;
+
+                appState.masteredIds = appState.masteredIds.filter(id => id !== card.id);
+                if (!appState.practiceIds.includes(card.id)) {
+                    appState.practiceIds.push(card.id);
+                }
+                saveState();
+                renderCurrentFlashcard();
+                showToast('Marked for extra practice.', 'warning');
+            });
+
+            // Quiz Controls
+            document.getElementById('btn-start-quiz').addEventListener('click', startQuiz);
+            document.getElementById('btn-retake-quiz').addEventListener('click', startQuiz);
+            document.getElementById('quiz-audio-btn').addEventListener('click', () => {
+                const q = quizQuestions[quizCurrentIdx];
+                if (q) speakText(q.card.word, q.card.lang, q.card.phonetic || q.card.translit);
+            });
+            document.getElementById('btn-submit-text-answer').addEventListener('click', handleTextAnswerSubmit);
+            document.getElementById('quiz-text-answer').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleTextAnswerSubmit();
+                }
+            });
+            document.getElementById('btn-quiz-next').addEventListener('click', () => {
+                if (quizCurrentIdx < quizQuestions.length - 1) {
+                    quizCurrentIdx += 1;
+                    renderQuizQuestion();
+                } else {
+                    showQuizSummary();
+                }
+            });
+
+            // Custom Flashcard Form Submission
+            document.getElementById('custom-card-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const lang = document.getElementById('custom-lang').value;
+                const category = document.getElementById('custom-category').value;
+                const word = document.getElementById('custom-word').value.trim();
+                const translit = document.getElementById('custom-translit').value.trim();
+                const meaning = document.getElementById('custom-meaning').value.trim();
+                const example = document.getElementById('custom-example').value.trim();
+                const exampleEn = document.getElementById('custom-example-en').value.trim();
+
+                if (!word || !meaning) return;
+
+                const newCard = {
+                    id: `custom-${Date.now()}`,
+                    lang,
+                    category,
+                    word,
+                    translit,
+                    phonetic: translit,
+                    meaning,
+                    example,
+                    exampleTranslit: '',
+                    exampleEn,
+                    grammarNote: `Custom card added by you in ${LANGUAGE_META[lang].name}.`
+                };
+
+                appState.customCards.push(newCard);
+                appState.xp += 15;
+                saveState();
+
+                e.target.reset();
+                document.getElementById('custom-lang').value = appState.selectedLang;
+
+                renderCustomCardsList();
+                refreshFlashcardDeck(false);
+                showToast('Custom flashcard added! +15 XP', 'success');
+            });
+
+            // Reset Progress Modal
+            const confirmModal = document.getElementById('confirm-modal');
+            document.getElementById('btn-reset-progress').addEventListener('click', () => {
+                confirmModal.classList.remove('hidden');
+            });
+            document.getElementById('btn-cancel-reset').addEventListener('click', () => {
+                confirmModal.classList.add('hidden');
+            });
+            document.getElementById('btn-confirm-reset').addEventListener('click', () => {
+                localStorage.removeItem(STORAGE_KEY);
+                appState = { ...defaultState, masteredIds: [], practiceIds: [], customCards: [], quizStats: { totalAnswered: 0, totalCorrect: 0 } };
+                saveState();
+                confirmModal.classList.add('hidden');
+                refreshFlashcardDeck(true);
+                renderCustomCardsList();
+                renderProgressDashboard();
+                showToast('All local progress has been reset.', 'info');
+            });
+
+            // Load voices asynchronously if browser supports it
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+            }
+
+            // Initial Render
+            updateHeaderStats();
+            refreshFlashcardDeck(true);
+            renderCustomCardsList();
+            renderProgressDashboard();
+        }
+
+        window.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
